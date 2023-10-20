@@ -1,0 +1,36 @@
+{% extends 'component/base.html' %}
+
+{% block content %}
+
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="zero_config" class="table table-striped table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Kelas</th>
+                            <th>Mata Pelajaran</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for list in data %}
+                        <tr>
+                            <td>{{list.kelas}}</td>
+                            <td>{{list.mapel}}</td>    
+                            <td>
+                                <a href="/{{list.id_mapel}}" class="btn btn-primary btn-sm"><i
+                                        class="fa-solid fas fa-eye"></i></a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>           
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}
