@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Message Sender</title>
+</head>
+<body>
+    <h1>WhatsApp Message Sender</h1>
+    <form action="/send_message" method="post">
+        <label for="phone">Nomor Telepon:</label><br>
+        <input type="text" id="phone" name="phone"><br><br>
+        <label for="message">Pesan:</label><br>
+        <textarea id="message" name="message" rows="4" cols="50"></textarea><br><br>
+        <input type="submit" value="Kirim Pesan">
+    </form>
+</body>
+</html>

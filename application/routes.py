@@ -4,11 +4,10 @@ from flask_mysqldb import MySQL
 import MySQLdb.cursors
 import hashlib
 import os
-from werkzeug.utils import secure_filename
+from datetime import datetime
+import requests
 
 app.secret_key = 'your_secret_key'
-
-app.config['UPLOAD_FILE_MATERI'] = 'application/static/materi/'
 
 # Configure MySQL
 app.config['MYSQL_HOST'] = 'localhost'
@@ -22,6 +21,10 @@ mysql = MySQL(app)
 @app.route('/login')
 def login():
     return render_template('login.html')
+    
+@app.route('/score')
+def score():
+    return render_template('score.html')
 
 #Admin Page
 @app.route('/home')
@@ -30,6 +33,10 @@ def home():
          return render_template('admin/index.html')
     else:
         return redirect(url_for('login'))
+
+@app.route('/chat')
+def chat():
+    return render_template('chat.html')
 
 @app.route('/data-siswa')
 def dataSiswa():
@@ -132,37 +139,6 @@ def jurusan():
     else:
         return redirect(url_for('login'))
 
-@app.route('/jadwal')
-def jadwal():
-    if 'islogin' in session:
-        curl = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        curl.execute("SELECT * FROM kelas")
-        kelas = curl.fetchall()
-
-        curl.execute('''
-                SELECT users.*, mapel.mapel
-                FROM users 
-                LEFT JOIN mapel ON mapel.id_mapel = users.id_mapel
-                WHERE users.level = 'Guru'
-            ''')
-        guru = curl.fetchall() 
-
-        curl.execute("SELECT * FROM mapel")
-        mapel = curl.fetchall()
-
-        curl.execute('''
-                SELECT jadwal.*, mapel.mapel,kelas.kelas,users.nama
-                FROM jadwal 
-                LEFT JOIN mapel ON mapel.id_mapel = jadwal.id_mapel
-                LEFT JOIN kelas ON kelas.id_kelas = jadwal.id_kelas
-                LEFT JOIN users ON users.id_user = jadwal.id_user
-            ''')
-        data = curl.fetchall() 
-
-        return render_template('admin/jadwal.html',kelas=kelas,mapel=mapel,guru=guru,data=data)
-    else:
-        return redirect(url_for('login'))
-
 #Page Guru
 @app.route('/tema-soal')
 def temaSoal():
@@ -170,7 +146,16 @@ def temaSoal():
         curl = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         curl.execute("SELECT * FROM kategori WHERE id_user = %s",(session['id_user'],))
         kategori = curl.fetchall()
-        return render_template('guru/tema.html',kategori=kategori)
+      
+        curl.execute('''
+            SELECT users.*, mapel.mapel
+            FROM users
+            LEFT JOIN mapel ON mapel.id_mapel = users.id_mapel
+            WHERE users.id_user = %s
+        ''',(session['id_user'],))
+        users = curl.fetchone()
+
+        return render_template('guru/tema.html',kategori=kategori,users=users)
     else:
         return redirect(url_for('login'))
 
@@ -178,19 +163,24 @@ def temaSoal():
 def soal():
     if 'islogin' in session:
         curl = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        curl.execute("SELECT * FROM kategori WHERE id_user = %s",(session['id_user'],))
-        kategori = curl.fetchall()
-        return render_template('guru/soal.html',kategori=kategori)
+        
+        curl.execute('''
+            SELECT soal.*,kategori.kategori
+            FROM soal
+            LEFT JOIN kategori ON kategori.id_kategori = soal.id_kategori
+            LEFT JOIN users ON users.id_user = kategori.id_user
+            WHERE users.id_user = %s
+        ''', (session['id_user'],))
+        soal = curl.fetchall()
+
+        return render_template('guru/soal.html',soal=soal)
     else:
         return redirect(url_for('login'))
 
-@app.route('/tinjau-soal/<int:id_kategori>')
-def tinjauSoal(id_kategori):
+@app.route('/view-ujian/<int:id_kategori>', methods=['GET'])
+def viewUjian(id_kategori):
     if 'islogin' in session:
         curl = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        curl.execute("SELECT * FROM soal WHERE id_kategori = %s", (id_kategori,))
-        soal = curl.fetchall()
-
         query = '''
                 SELECT kategori.*
                 FROM kategori 
@@ -199,9 +189,11 @@ def tinjauSoal(id_kategori):
             '''
         curl.execute(query, (id_kategori,))
         detail = curl.fetchone()
-        return render_template('guru/tinjau.html', soal=soal,detail=detail)
+
+        return render_template('guru/tinjau.html', soal=soal,detail=detail,nomor_soal=nomor_soal,prev_data=prev_data, next_data=next_data)
     else:
         return redirect(url_for('login'))
+
 
 @app.route('/form-soal')
 def formSoal():
@@ -209,129 +201,99 @@ def formSoal():
         curl = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         curl.execute("SELECT * FROM kategori WHERE id_user = %s",(session['id_user'],))
         kategori = curl.fetchall()
-        return render_template('guru/formSoal.html',kategori=kategori)
+
+        curl.execute("SELECT * FROM mapel")
+        mapel = curl.fetchall()
+        return render_template('guru/formSoal.html',kategori=kategori,mapel=mapel)
     else:
         return redirect(url_for('login'))
         
-@app.route('/materi')
-def materi():
-    if 'islogin' in session:
-        id_user = session.get('id_user')
-        curl = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        curl.execute("SELECT * FROM kelas")
-        kelas = curl.fetchall()
-
-        materi = '''
-            SELECT materi.*, mapel.mapel,kelas.kelas
-            FROM materi 
-            LEFT JOIN mapel ON mapel.id_mapel = materi.id_mapel
-            LEFT JOIN kelas ON kelas.id_kelas = materi.id_kelas
-            WHERE materi.id_user = %s
-        '''
-        curl.execute(materi,(id_user,))
-        data = curl.fetchall()
-
-        query = '''
-            SELECT users.*, mapel.mapel
-            FROM users 
-            LEFT JOIN mapel ON mapel.id_mapel = users.id_mapel
-            WHERE users.id_user = %s
-        '''
-        curl.execute(query,(id_user,))
-        mapel = curl.fetchone()
-        
-        return render_template('guru/materi.html',kelas=kelas,mapel=mapel,data=data)
-    else:
-        return redirect(url_for('login'))
-
 #Page Siswa
-@app.route('/daftar-materi')
-def daftarMateri():
+@app.route('/hasil-ujian')
+def hasil():
     if 'islogin' in session:
-        id_user = session.get('id_user')
-        curl = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        query ='''
-            SELECT jadwal.*,mapel.mapel,kelas.kelas
-            FROM jadwal 
-            LEFT JOIN users ON jadwal.id_kelas = users.id_kelas
-            LEFT JOIN mapel ON jadwal.id_mapel = mapel.id_mapel
-            LEFT JOIN kelas ON kelas.id_kelas = jadwal.id_kelas
-            WHERE users.id_user = %s
-        '''
-        curl.execute(query, (id_user,))
-
-
-        curl.execute(query, (id_user,))
-
-        data = curl.fetchall()
-        print(data)
-
-        return render_template('siswa/materi.html',data=data)
-    else:
-        return redirect(url_for('login'))
-
-@app.route('/<int:id_mapel>')
-def viewMateri(id_mapel):
-    if 'islogin' in session:
-        id_user = session.get('id_user')
         curl = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         query = '''
-            SELECT materi.*
-            FROM materi 
-            LEFT JOIN users ON materi.id_kelas = users.id_kelas
-            LEFT JOIN kelas ON materi.id_kelas = kelas.id_kelas
-            WHERE users.id_kelas = materi.id_kelas
-            AND users.id_user = %s
-        '''
-        curl.execute(query, (id_user,))
+                SELECT hasil_ujian.*,kategori.kategori
+                FROM hasil_ujian 
+                LEFT JOIN users ON hasil_ujian.id_user = users.id_user
+                LEFT JOIN kategori ON hasil_ujian.id_kategori = kategori.id_kategori
+                WHERE hasil_ujian.id_user = %s
+            '''
+        curl.execute(query,(session['id_user'],))
         data = curl.fetchall()
-       
-        guru = '''
-            SELECT materi.*,users.nama,mapel.mapel
-            FROM materi 
-            LEFT JOIN users ON materi.id_user = users.id_user
-            LEFT JOIN mapel ON materi.id_mapel = mapel.id_mapel
-        '''
-        curl.execute(guru)
-        dataGuru = curl.fetchone()
-        print(dataGuru)
-        return render_template('siswa/detailMateri.html',data=data,dataGuru=dataGuru)
+        return render_template('siswa/hasil.html',data=data)
     else:
         return redirect(url_for('login'))
 
-@app.route('/view/<int:id_materi>')
-def view_pdf(id_materi):
+@app.route('/ujian/<int:id_kategori>', methods=['GET','POST'])
+def ujian(id_kategori):
     if 'islogin' in session:
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT file FROM materi WHERE id_materi = %s", (id_materi,))
-        pdf_filename = cur.fetchone()
-        cur.execute("SELECT materi FROM materi WHERE id_materi = %s", (id_materi,))
-        materi = cur.fetchone()
-        cur.close()
-        return render_template('siswa/viewPdf.html', pdf=pdf_filename,materi=materi)
-    else:
-        return redirect(url_for('login'))
+        # Masukkan hasil ujian ke dalam database
+        if request.method == 'GET':
+            cur = mysql.connection.cursor()
+            insert_query = "INSERT INTO hasil_ujian (id_user, id_kategori) VALUES (%s, %s)"
+            cur.execute(insert_query, (session['id_user'], id_kategori))
+            mysql.connection.commit()
 
-@app.route('/ujian')
-def ujian():
-    if 'islogin' in session:
         curl = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        curl.execute("SELECT * FROM kategori ")
-        kategori = curl.fetchall()
-        return render_template('siswa/ujian.html')
+        query = '''
+                SELECT kategori.*,mapel.mapel
+                FROM kategori 
+                LEFT JOIN soal ON soal.id_kategori = kategori.id_kategori
+                LEFT JOIN mapel ON mapel.id_mapel = kategori.id_mapel
+                WHERE kategori.id_kategori = %s
+            '''
+        curl.execute(query, (id_kategori,))
+        detail = curl.fetchone()
+
+        users_query = '''
+            SELECT users.*, kelas.kelas
+            FROM users 
+            LEFT JOIN kelas ON kelas.id_kelas = users.id_kelas
+            WHERE users.id_user = %s
+        '''
+        curl.execute(users_query, (session['id_user'],))
+        data = curl.fetchone()
+
+        
+        curl.execute("SELECT * FROM soal WHERE id_kategori = %s ORDER BY RAND()", (id_kategori,))
+        soal = curl.fetchall()
+
+        return render_template('ujian.html', soal=soal,detail=detail,data=data,id_kategori=id_kategori)
     else:
         return redirect(url_for('login'))
+
+@app.route('/daftar-ujian')
+def listUjian():
+    curl = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    curl.execute('''
+            SELECT kategori.*,mapel.mapel
+            FROM kategori
+            LEFT JOIN mapel ON mapel.id_mapel = kategori.id_mapel
+        ''')
+    ujian = curl.fetchall()
+
+    return render_template('siswa/listUjian.html',ujian=ujian)
 
 #Action Guru
-@app.route('/insert-kategori', methods=['POST'])
+@app.route('/insert-jenis-ujian', methods=['POST'])
 def insertKategori():
-    id_user = session(['id_user'])
+    id_user = session.get('id_user')
+    id_mapel = request.form['id_mepal']
     kategori = request.form['kategori']
     tanggal = request.form['tanggal']
     time_start = request.form['time_start']
     time_done = request.form['time_done']
+    # Convert strings to datetime objects
+    format_str = '%H:%M'  # The format
+    time_start_obj = datetime.strptime(time_start, format_str)
+    time_done_obj = datetime.strptime(time_done, format_str)
+
+    # Calculate the duration in minutes
+    duration = (time_done_obj - time_start_obj).seconds // 60
     cur = mysql.connection.cursor()
-    cur.execute("INSERT INTO kategori (id_user,kategori,tanggal,time_start,time_done) VALUES (%s,%s,%s,%s,%s)",(id_user,kategori,tanggal,time_start,time_done))
+    cur.execute("INSERT INTO kategori (id_user,id_mepel,kategori,tanggal,time_start,time_done,duration) VALUES (%s,%s,%s,%s,%s,%s,%s)",(id_user,id_mapel,kategori,tanggal,time_start,time_done,duration))
     mysql.connection.commit()
     return redirect(url_for('temaSoal'))
 
@@ -354,34 +316,6 @@ def generate_slug(text):
     text = ''.join(e for e in text if (e.isalnum() or e == ' '))
     text = text.replace(' ', '-')
     return text
-
-@app.route('/insert-materi',methods=['POST', 'GET'])
-def insertMateri():
-    id_user = session['id_user']
-    materi = request.form['materi']
-    materi_slug = generate_slug(materi)
-    id_kelas = request.form['id_kelas']
-    id_mapel = request.form['id_mapel']
-    link = request.form['link']
-    file = request.files['file']
-    date = request.form['date']
-
-    if file:
-        filename = secure_filename(file.filename)
-        upload_dir = os.path.join(app.config['UPLOAD_FILE_MATERI'])
-        if not os.path.exists(upload_dir):
-            os.makedirs(upload_dir)
-        file_path = os.path.join(upload_dir, filename)
-        file.save(file_path)
-    else:
-        filename = None
-
-    cur = mysql.connection.cursor()
-    cur.execute("INSERT INTO materi (id_user,id_kelas,id_mapel,materi,materi_slug,date,link,file) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)" ,(id_user,id_kelas,id_mapel,materi,materi_slug,date,link,filename))  
-    mysql.connection.commit()
-    flash('Materi berhasil disimpan')
-    return redirect(url_for('materi'))
-
 
 #Action Admin
 @app.route('/insert-user', methods=['POST'])
@@ -426,18 +360,6 @@ def insertJurusan():
     mysql.connection.commit()
     return redirect(url_for('jurusan'))
 
-@app.route('/insert-jadwal', methods=['POST'])
-def insertJadwal():
-    hari = request.form['hari']
-    id_mapel = request.form['id_mapel']
-    id_kelas = request.form['id_kelas']
-    id_user = request.form['id_user']
-    cur = mysql.connection.cursor()
-    cur.execute("INSERT INTO jadwal (hari, id_mapel, id_kelas,id_user) VALUES (%s, %s, %s,%s)",(hari, id_mapel, id_kelas,id_user))
-    mysql.connection.commit()
-    return redirect(url_for('jadwal'))
-
-
 #Auth/Login
 @app.route('/action-login', methods=['GET', 'POST'])
 def actionLogin():
@@ -470,6 +392,61 @@ def actionLogin():
 def check_password(input_password, stored_password):
     hashed_input_password = hashlib.sha256(input_password.encode()).hexdigest()
     return hashed_input_password == stored_password
+
+def get_correct_answers(id_kategori):
+    correct_answers = {}
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT id_soal, correct FROM soal WHERE id_kategori = %s", (id_kategori,))
+    rows = cur.fetchall()
+    cur.close()
+    print(rows)
+    for row in rows:
+        question_id = row['id_soal'] 
+        correct_option = row['correct'] 
+        print("Nilai id_soal:", question_id)
+        print("Nilai correct:", correct_option)
+        correct_answers[question_id] = correct_option 
+    return correct_answers
+
+def calculate_score(user_answers, correct_answers):
+    correct_count = 0
+    wrong_count = 0
+    for question_id, user_choice in user_answers.items():
+        if question_id.startswith('question_'):
+            question_id = question_id[9:]
+            correct_option = correct_answers.get(int(question_id), '')
+            if correct_option and user_choice == correct_option:
+                correct_count += 1
+            else:
+                wrong_count += 1
+    return correct_count, wrong_count
+
+@app.route('/submit-quiz/<int:id_kategori>', methods=['POST'])
+def submit_quiz(id_kategori):
+    user_answers = request.form
+    correct_answers = get_correct_answers(id_kategori)
+    print("Jawaban Pengguna:", user_answers)
+    print("Jawaban yang Benar:", correct_answers)
+    correct_count, wrong_count = calculate_score(user_answers, correct_answers)
+    score = correct_count * 10
+    total_questions = len(correct_answers)
+
+    cur = mysql.connection.cursor()
+    update_query = "UPDATE hasil_ujian SET hasil=%s, total_soal=%s, jumlah_betul=%s, jumlah_salah=%s WHERE id_user=%s AND id_kategori=%s"
+    cur.execute(update_query, (score, total_questions,  correct_count, wrong_count, session['id_user'], id_kategori))
+    mysql.connection.commit()
+    return render_template('score.html', score=score, total=total_questions, wrong_count=wrong_count,correct_count=correct_count)
+
+@app.route('/add_violation_data', methods=['POST'])
+def add_violation_data():
+    data = request.get_json()
+    id_user = data.get('id_user')
+    id_kategori = data.get('id_kategori')
+    cur = mysql.connection.cursor()
+    update_query = "UPDATE hasil_ujian SET pelanggaran = pelanggaran + 1 WHERE id_user = %s AND id_kategori = %s"
+    cur.execute(update_query, (id_user, id_kategori))
+    mysql.connection.commit()
+    return "Data pelanggaran berhasil diperbarui di database!"
 
 @app.route('/logout')
 def logout():

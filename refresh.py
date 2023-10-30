@@ -36,11 +36,6 @@ with app.app_context():
     cur.execute("ALTER TABLE kategori ADD id_kategori INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST")
 
     #Materi
-    cur.execute("DELETE FROM materi")
-    cur.execute("ALTER TABLE materi DROP id_materi")
-    cur.execute("ALTER TABLE materi ADD id_materi INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST")
-
-    #Materi
     cur.execute("DELETE FROM soal")
     cur.execute("ALTER TABLE soal DROP id_soal")
     cur.execute("ALTER TABLE soal ADD id_soal INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST")
@@ -50,9 +45,8 @@ with app.app_context():
     cur.execute("ALTER TABLE jurusan DROP id_jurusan")
     cur.execute("ALTER TABLE jurusan ADD id_jurusan INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST")
 
-    #Materi
-    cur.execute("DELETE FROM jadwal")
-    cur.execute("ALTER TABLE jadwal DROP id_jadwal")
-    cur.execute("ALTER TABLE jadwal ADD id_jadwal INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST")
-
+    cur.execute("DELETE FROM hasil_ujian")
+    cur.execute("ALTER TABLE hasil_ujian DROP id_ujian")
+    cur.execute("ALTER TABLE hasil_ujian ADD  id_ujian INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST")
+    
     mysql.connection.commit()

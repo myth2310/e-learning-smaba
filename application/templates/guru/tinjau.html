@@ -2,7 +2,6 @@
 
 {% block content %}
 
-
 <div class="container-fluid">
     <div class="row mt-3">
         <div class="col-md-12 text-right">
@@ -15,67 +14,63 @@
         </div>
     </div>
 
-    
-    <div class="card">
-        <div class="card-body">
-            <div class="container">
-                {% for soal in soal %}
-                <p>{{ soal.pertanyaan|safe }}</p>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="exampleRadios" id="option1" value="option1"
-                        checked>
-                    <label class="form-check-label" for="option1">
-                        Jupiter
-                    </label>
+    <div class="container">
+        <div class="row">
+            <div class="col-8">
+               <div class="card">
+                <div class="card-body">
+                    <div class="soal">
+                        <p>{{ soal.pertanyaan|safe }}</p>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="exampleRadios" id="option1" value="option1"
+                                checked>
+                            <label class="form-check-label" for="option1">
+                                {{soal.jawaban_a|safe}}
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="exampleRadios" id="option2" value="option2">
+                            <label class="form-check-label" for="option2">
+                                {{soal.jawaban_b|safe}}
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="exampleRadios" id="option3" value="option3">
+                            <label class="form-check-label" for="option3">
+                                {{soal.jawaban_c|safe}}
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="exampleRadios" id="option4" value="option4">
+                            <label class="form-check-label" for="option4">
+                                {{soal.jawaban_d|safe}}
+                            </label>
+                        </div>
+                        <div class="answer">Jawaban Benar : <span class="font-bold">{{soal.correct}}</span></div>
+                        <div class="navigation mt-4">
+                            
+                        </div>
+                    </div>
                 </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="exampleRadios" id="option2" value="option2">
-                    <label class="form-check-label" for="option2">
-                        Saturn
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="exampleRadios" id="option3" value="option3">
-                    <label class="form-check-label" for="option3">
-                        Earth
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="exampleRadios" id="option4" value="option4">
-                    <label class="form-check-label" for="option4">
-                        Mars
-                    </label>
-                </div>
-                {% endfor %}
-                <button type="submit" class="btn btn-primary mt-3">Submit</button>
-
+               </div>
             </div>
+            <div class="col-4">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="navigation">
+                            <h4>Navigasi Soal</h4>
+                            {% for s in nomor_soal %}
+                                <button class="btn btn-primary mt-2">{{loop.index}}</button>
+                            {% endfor %}
+                          
+                        </div>
+                    </div>
+                </div>
+            </div> 
         </div>
     </div>
+    
 </div>
-
-<script>
-    var countDownDate = new Date().getTime() + 1800000;
-
-    var x = setInterval(function() {
-        var now = new Date().getTime();
-        var distance = countDownDate - now;
-
-        var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        var seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-        var timeRemaining = hours + ":" + minutes + ":" + seconds;
-
-        document.getElementById("countdown").innerHTML = timeRemaining;
-
-        if (distance < 0) {
-            clearInterval(x);
-            document.getElementById("countdown").innerHTML = "Waktu Habis";
-        }
-    }, 1000);
-</script>
-
 
 
 {% endblock %}

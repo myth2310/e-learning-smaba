@@ -1,0 +1,82 @@
+{% extends 'component/base.html' %}
+
+{% block content %}
+
+<div class="page-breadcrumb">
+    <div class="row">
+        <div class="col-12 d-flex no-block align-items-center">
+            <h4 class="page-title">Daftar Ujian</h4>
+            <div class="ms-auto text-end">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="#">Home</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Daftar Ujian</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="zero_config" class="table table-striped table-bordered">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Jenis Ujian</th>
+                            <th>Mata Pelajaran</th>
+                            <th>Tanggal</th>
+                            <th>Jam</th>
+                            <th>Durasi</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ujian in ujian%}
+                        <tr>
+                            <td>{{loop.index}}</td>
+                            <td>{{ujian.kategori}}</td>
+                            <td>{{ujian.mapel}}</td>
+                            <td>{{ujian.tanggal}}</td>
+                            <td>{{ujian.time_start}} - {{ujian.time_done}}</td>
+                            <td><span class="font-bold">{{ujian.duration}} Menit</span></td>
+                            <td>
+                                <button type="button" data-id="{{ujian.id_kategori}}"
+                                    class="btn btn-danger text-white mb-4 start">Mulai Ujian</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    $('.start').click(function () {
+        var dataid = $(this).attr('data-id');
+        swal({
+            title: "Mulai Ujian ?"
+            , text: "Apakah kamu yakin ingin mulai ujian sekarang ?"
+            , icon: "warning"
+            , buttons: true
+            , dangerMode: true
+            ,
+        })
+            .then((willUpprove) => {
+                if (willUpprove) {
+                    window.location = "/ujian/" + dataid + ""
+                } else {
+                    swal("Ujian dibatalkan");
+                }
+            });
+    });
+
+</script>
+
+{% endblock %}

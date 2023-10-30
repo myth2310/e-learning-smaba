@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 20, 2023 at 09:42 AM
+-- Generation Time: Oct 30, 2023 at 03:03 AM
 -- Server version: 10.4.28-MariaDB
 -- PHP Version: 8.2.4
 
@@ -24,15 +24,18 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Table structure for table `jadwal`
+-- Table structure for table `hasil_ujian`
 --
 
-CREATE TABLE `jadwal` (
-  `id_jadwal` int(11) NOT NULL,
-  `id_mapel` int(4) NOT NULL,
+CREATE TABLE `hasil_ujian` (
+  `id_ujian` int(11) NOT NULL,
   `id_user` int(4) NOT NULL,
-  `id_kelas` int(4) NOT NULL,
-  `hari` varchar(20) NOT NULL
+  `id_kategori` int(4) NOT NULL,
+  `hasil` int(5) DEFAULT NULL,
+  `total_soal` int(5) DEFAULT NULL,
+  `pelanggaran` int(5) DEFAULT NULL,
+  `jumlah_betul` int(5) DEFAULT NULL,
+  `jumlah_salah` int(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -55,10 +58,12 @@ CREATE TABLE `jurusan` (
 CREATE TABLE `kategori` (
   `id_kategori` int(11) NOT NULL,
   `id_user` int(4) NOT NULL,
+  `id_mapel` int(4) NOT NULL,
   `kategori` varchar(10) NOT NULL,
   `tanggal` varchar(20) NOT NULL,
   `time_start` varchar(20) NOT NULL,
-  `time_done` varchar(20) NOT NULL
+  `time_done` varchar(20) NOT NULL,
+  `duration` int(5) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -83,24 +88,6 @@ CREATE TABLE `mapel` (
   `id_mapel` int(11) NOT NULL,
   `id_jurusan` varchar(20) NOT NULL,
   `mapel` varchar(255) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `materi`
---
-
-CREATE TABLE `materi` (
-  `id_materi` int(11) NOT NULL,
-  `id_user` int(4) NOT NULL,
-  `id_mapel` int(4) NOT NULL,
-  `id_kelas` int(4) NOT NULL,
-  `date` varchar(20) NOT NULL,
-  `materi` varchar(255) NOT NULL,
-  `materi_slug` varchar(255) NOT NULL,
-  `file` varchar(255) DEFAULT NULL,
-  `link` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -143,10 +130,10 @@ CREATE TABLE `users` (
 --
 
 --
--- Indexes for table `jadwal`
+-- Indexes for table `hasil_ujian`
 --
-ALTER TABLE `jadwal`
-  ADD PRIMARY KEY (`id_jadwal`);
+ALTER TABLE `hasil_ujian`
+  ADD PRIMARY KEY (`id_ujian`);
 
 --
 -- Indexes for table `jurusan`
@@ -173,12 +160,6 @@ ALTER TABLE `mapel`
   ADD PRIMARY KEY (`id_mapel`);
 
 --
--- Indexes for table `materi`
---
-ALTER TABLE `materi`
-  ADD PRIMARY KEY (`id_materi`);
-
---
 -- Indexes for table `soal`
 --
 ALTER TABLE `soal`
@@ -195,10 +176,10 @@ ALTER TABLE `users`
 --
 
 --
--- AUTO_INCREMENT for table `jadwal`
+-- AUTO_INCREMENT for table `hasil_ujian`
 --
-ALTER TABLE `jadwal`
-  MODIFY `id_jadwal` int(11) NOT NULL AUTO_INCREMENT;
+ALTER TABLE `hasil_ujian`
+  MODIFY `id_ujian` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `jurusan`
@@ -223,12 +204,6 @@ ALTER TABLE `kelas`
 --
 ALTER TABLE `mapel`
   MODIFY `id_mapel` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `materi`
---
-ALTER TABLE `materi`
-  MODIFY `id_materi` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `soal`
