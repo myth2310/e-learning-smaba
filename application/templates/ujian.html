@@ -100,7 +100,6 @@
   </div>
 </div>
 
-
 <script>
   var hidden, visibilityChange;
   if (typeof document.hidden !== "undefined") {
@@ -108,32 +107,53 @@
       visibilityChange = "visibilitychange";
   }
 
+  var id_user = '{{data.id_user}}';
+  var id_kategori = '{{detail.id_kategori}}'
+
   function handleVisibilityChange() {
       if (document[hidden]) {
-          swal("Peringatan !", "Anda melanggar aturan dengan membuka halaman baru.", "info");
+    
+          var data = { 'id_user': id_user ,'id_kategori': id_kategori };
+          fetch('/add_violation_data', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(data)
+          })
+          .then(response => response.text())
+          .then(data => {
+            var pelanggaran = parseInt(data);
+
+            if (pelanggaran > 3) {
+                document.getElementById('quiz-form').submit();
+            }})
+          .catch(error => console.error('Error:', error));
+
+          swal("Peringatan !", "Anda melanggar aturan dengan membuka halaman baru. ID User: " + data.id_user + ", ID Kategori: " + data.id_kategori, "info");
+
       }
   }
 document.addEventListener(visibilityChange, handleVisibilityChange, false);
 </script>
 
-
 <script>
   var durasiUjian = parseInt('{{detail.duration}}');
   var detik = localStorage.getItem('detik') ? parseInt(localStorage.getItem('detik')) : durasiUjian * 60;
-
+  var id_kategori = "{{ id_kategori }}";
   var countdownElement = document.getElementById('countdown');
 
   var countdownInterval = setInterval(function () {
     var menit = Math.floor(detik / 60);
     var detikSisa = detik % 60;
-
     detikSisa = detikSisa < 10 ? '0' + detikSisa : detikSisa;
-
     countdownElement.innerHTML = 'Sisa Waktu: ' + menit + ':' + detikSisa;
 
     if (detik == 0) {
       clearInterval(countdownInterval);
       countdownElement.innerHTML = 'Waktu Habis';
+      document.getElementById('quiz-form').submit();
+      localStorage.removeItem('detik');
     } else {
       detik--;
       localStorage.setItem('detik', detik);
@@ -161,19 +181,5 @@ document.addEventListener(visibilityChange, handleVisibilityChange, false);
       });
   });
 </script>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 {% endblock %}

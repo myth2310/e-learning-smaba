@@ -33,7 +33,7 @@
                                         style="width: 100%; height:36px;">
                                         <option selected value="">-- Pilih Jenis Ujian --</option>
                                         {% for kategori in kategori %}
-                                        <option value="{{kategori.id_kategori}}" >{{kategori.kategori}}</option> 
+                                        <option value="{{kategori.id_kategori}}" >{{kategori.kategori}} - {{kategori.tanggal}}</option> 
                                         {% endfor %}   
                                     </select>
                                 </div>

@@ -20,11 +20,10 @@ mysql = MySQL(app)
 @app.route('/')
 @app.route('/login')
 def login():
-    return render_template('login.html')
-    
-@app.route('/score')
-def score():
-    return render_template('score.html')
+    if 'islogin' in session:
+         return redirect(url_for('home'))
+    else:
+        return render_template('login.html')
 
 #Admin Page
 @app.route('/home')
@@ -37,6 +36,19 @@ def home():
 @app.route('/chat')
 def chat():
     return render_template('chat.html')
+
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    try:
+        phone_no = request.form['phone']
+        message = request.form['message']
+        
+        kit.sendwhatmsg(f"+{phone_no}", message, 0, 0)  # Mengirim pesan WhatsApp secara instan
+
+        return "Pesan WhatsApp berhasil dikirim!"
+
+    except Exception as e:
+        return str(e)
 
 @app.route('/data-siswa')
 def dataSiswa():
@@ -165,7 +177,7 @@ def soal():
         curl = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
         curl.execute('''
-            SELECT soal.*,kategori.kategori
+            SELECT soal.*,kategori.kategori,kategori.tanggal
             FROM soal
             LEFT JOIN kategori ON kategori.id_kategori = soal.id_kategori
             LEFT JOIN users ON users.id_user = kategori.id_user
@@ -214,10 +226,11 @@ def hasil():
     if 'islogin' in session:
         curl = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         query = '''
-                SELECT hasil_ujian.*,kategori.kategori
+                SELECT hasil_ujian.*,kategori.kategori,mapel.mapel
                 FROM hasil_ujian 
                 LEFT JOIN users ON hasil_ujian.id_user = users.id_user
                 LEFT JOIN kategori ON hasil_ujian.id_kategori = kategori.id_kategori
+                LEFT JOIN mapel ON mapel.id_mapel = kategori.id_mapel
                 WHERE hasil_ujian.id_user = %s
             '''
         curl.execute(query,(session['id_user'],))
@@ -256,7 +269,7 @@ def ujian(id_kategori):
         curl.execute(users_query, (session['id_user'],))
         data = curl.fetchone()
 
-        
+    
         curl.execute("SELECT * FROM soal WHERE id_kategori = %s ORDER BY RAND()", (id_kategori,))
         soal = curl.fetchall()
 
@@ -268,19 +281,32 @@ def ujian(id_kategori):
 def listUjian():
     curl = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     curl.execute('''
-            SELECT kategori.*,mapel.mapel
-            FROM kategori
-            LEFT JOIN mapel ON mapel.id_mapel = kategori.id_mapel
-        ''')
+        SELECT kategori.*, mapel.mapel
+        FROM kategori
+        LEFT JOIN mapel ON mapel.id_mapel = kategori.id_mapel
+        WHERE kategori.id_kategori IN (
+            SELECT DISTINCT id_kategori
+            FROM soal
+        )
+    ''')
     ujian = curl.fetchall()
 
-    return render_template('siswa/listUjian.html',ujian=ujian)
+    curl.execute('''
+                SELECT kategori.id_kategori
+                FROM kategori
+                JOIN hasil_ujian ON kategori.id_kategori = hasil_ujian.id_kategori 
+                WHERE hasil_ujian.id_user = %s
+            ''', (session['id_user'],))
+
+    ujianSelesai = [item['id_kategori'] for item in curl.fetchall()]
+
+    return render_template('siswa/listUjian.html',ujian=ujian,ujianSelesai=ujianSelesai)
 
 #Action Guru
 @app.route('/insert-jenis-ujian', methods=['POST'])
 def insertKategori():
     id_user = session.get('id_user')
-    id_mapel = request.form['id_mepal']
+    id_mapel = request.form['id_mapel']
     kategori = request.form['kategori']
     tanggal = request.form['tanggal']
     time_start = request.form['time_start']
@@ -293,7 +319,7 @@ def insertKategori():
     # Calculate the duration in minutes
     duration = (time_done_obj - time_start_obj).seconds // 60
     cur = mysql.connection.cursor()
-    cur.execute("INSERT INTO kategori (id_user,id_mepel,kategori,tanggal,time_start,time_done,duration) VALUES (%s,%s,%s,%s,%s,%s,%s)",(id_user,id_mapel,kategori,tanggal,time_start,time_done,duration))
+    cur.execute("INSERT INTO kategori (id_user,id_mapel,kategori,tanggal,time_start,time_done,duration) VALUES (%s,%s,%s,%s,%s,%s,%s)",(id_user,id_mapel,kategori,tanggal,time_start,time_done,duration))
     mysql.connection.commit()
     return redirect(url_for('temaSoal'))
 
@@ -309,7 +335,25 @@ def insertSoal():
     cur = mysql.connection.cursor()
     cur.execute("INSERT INTO soal (id_kategori, pertanyaan, jawaban_a, jawaban_b, jawaban_c, jawaban_d, correct) VALUES (%s, %s, %s, %s, %s, %s, %s)", (id_kategori, pertanyaan, jawaban_a, jawaban_b, jawaban_c, jawaban_d, correct))
     mysql.connection.commit()
+    flash('Soal Berhasil ditambahkan')
     return redirect(url_for('soal'))
+
+@app.route('/update-soal/<int:id_soal>', methods=['POST'])
+def updateSoal(id_soal):
+    id_kategori = request.form['id_kategori']
+    pertanyaan = request.form['pertanyaan']
+    jawaban_a = request.form['jawaban_a']
+    jawaban_b = request.form['jawaban_b']
+    jawaban_c = request.form['jawaban_c']
+    jawaban_d = request.form['jawaban_d']
+    correct = request.form['correct']
+    
+    cur = mysql.connection.cursor()
+    cur.execute("UPDATE soal SET id_kategori=%s, pertanyaan=%s, jawaban_a=%s, jawaban_b=%s, jawaban_c=%s, jawaban_d=%s, correct=%s WHERE id_soal=%s", (id_kategori, pertanyaan, jawaban_a, jawaban_b, jawaban_c, jawaban_d, correct, id_soal))
+    mysql.connection.commit()
+    flash('Soal Berhasil diperbarui')
+    return redirect(url_for('soal'))
+
 
 def generate_slug(text):
     text = text.lower()
@@ -359,6 +403,132 @@ def insertJurusan():
     cur.execute("INSERT INTO jurusan (jurusan) VALUES (%s)", (jurusan,))
     mysql.connection.commit()
     return redirect(url_for('jurusan'))
+
+@app.route('/view-users/<int:id_user>', methods=['GET'])
+def viewUsers(id_user):
+    curl = mysql.connection.cursor()
+    curl.execute("SELECT * FROM users WHERE id_user = %s", (id_user,))
+    data = curl.fetchone()
+    return render_template('admin/formEdit.html', data=data)
+
+@app.route('/delete-users/<int:id_user>', methods=['GET'])
+def deleteUsers(id_user):
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM users WHERE id_user = %s", (id_user,))
+    mysql.connection.commit()
+    flash('Data Berhasil dihapus')
+    return redirect(url_for('home'))
+
+@app.route('/update-jurusan/<int:id_jurusan>', methods=['POST', 'GET'])
+def updateJurusan(id_jurusan):
+    jurusan = request.form['jurusan']
+    cur = mysql.connection.cursor()
+    cur.execute("UPDATE jurusan SET jurusan = %s WHERE id_jurusan = %s", (jurusan, id_jurusan))
+    mysql.connection.commit()
+    flash('Data Jurusan Berhasil diupdate')
+    return redirect(url_for('jurusan'))
+
+@app.route('/delete-jurusan/<int:id_jurusan>', methods=['GET'])
+def deleteJurusan(id_jurusan):
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM jurusan WHERE id_jurusan = %s", (id_jurusan,))
+    cur.execute("DELETE FROM kelas WHERE id_jurusan = %s", (id_jurusan,))
+    cur.execute("DELETE FROM mapel WHERE id_jurusan = %s", (id_jurusan,))
+    cur.execute("DELETE FROM users WHERE id_jurusan = %s", (id_jurusan,))
+    mysql.connection.commit()
+    flash('Data Jurusan Berhasil dihapus')
+    return redirect(url_for('jurusan'))
+
+@app.route('/update-kelas/<int:id_kelas>', methods=['POST', 'GET'])
+def updateKelas(id_kelas):
+    id_jurusan = request.form['id_jurusan']
+    kelas = request.form['kelas']
+    cur = mysql.connection.cursor()
+    cur.execute("UPDATE kelas SET id_jurusan = %s ,kelas = %s WHERE id_kelas = %s", (id_jurusan,kelas, id_kelas))
+    mysql.connection.commit()
+    flash('Data Kelas Berhasil diupdate')
+    return redirect(url_for('kelas'))
+
+@app.route('/delete-kelas/<int:id_kelas>', methods=['GET'])
+def deleteKelas(id_kelas):
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM kelas WHERE id_kelas = %s", (id_kelas,))
+    mysql.connection.commit()
+    flash('Data  Kelas Berhasil dihapus')
+    return redirect(url_for('kelas'))
+
+@app.route('/update-mapel/<int:id_mapel>', methods=['POST', 'GET'])
+def updateMapel(id_mapel):
+    id_jurusan = request.form['id_jurusan']
+    mapel = request.form['mapel']
+    cur = mysql.connection.cursor()
+    cur.execute("UPDATE mapel SET id_jurusan = %s ,mapel = %s WHERE id_mapel = %s", (id_jurusan,mapel, id_mapel))
+    mysql.connection.commit()
+    flash('Data Mapel Berhasil diupdate')
+    return redirect(url_for('mapel'))
+
+@app.route('/delete-mapel/<int:id_mapel>', methods=['GET'])
+def deleteMapel(id_mapel):
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM mapel WHERE id_mapel = %s", (id_mapel,))
+    mysql.connection.commit()
+    flash('Data Mapel Berhasil dihapus')
+    return redirect(url_for('mapel'))
+
+@app.route('/delete-soal/<int:id_soal>', methods=['GET'])
+def deleteSoal(id_soal):
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM soal WHERE id_soal = %s", (id_soal,))
+    mysql.connection.commit()
+    flash('Data Soal Berhasil dihapus')
+    return redirect(url_for('soal'))
+
+@app.route('/delete-kategori/<int:id_kategori>', methods=['GET'])
+def deleteKategori(id_kategori):
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM kategori WHERE id_kategori = %s", (id_kategori,))
+    cur.execute("DELETE FROM soal WHERE id_kategori = %s", (id_kategori,))
+    cur.execute("DELETE FROM hasil_ujian WHERE id_kategori = %s", (id_kategori,))
+    mysql.connection.commit()
+    flash('Data Kategori Berhasil dihapus')
+    return redirect(url_for('temaSoal'))
+
+@app.route('/update-kategori/<int:id_kategori>', methods=['POST'])
+def updateKategori(id_kategori):
+    id_user = session.get('id_user')
+    id_mapel = request.form['id_mapel']
+    kategori = request.form['kategori']
+    tanggal = request.form['tanggal']
+    time_start = request.form['time_start']
+    time_done = request.form['time_done']
+    # Convert strings to datetime objects
+    format_str = '%H:%M'  # The format
+    time_start_obj = datetime.strptime(time_start, format_str)
+    time_done_obj = datetime.strptime(time_done, format_str)
+
+    # Calculate the duration in minutes
+    duration = (time_done_obj - time_start_obj).seconds // 60
+    cur = mysql.connection.cursor()
+    cur.execute("UPDATE kategori SET id_user=%s, id_mapel=%s, kategori=%s, tanggal=%s, time_start=%s, time_done=%s, duration=%s WHERE id_kategori=%s", (id_user, id_mapel, kategori, tanggal, time_start, time_done, duration, id_kategori))
+    mysql.connection.commit()
+    return redirect(url_for('temaSoal'))
+
+@app.route('/view-soal/<int:id_soal>', methods=['GET'])
+def viewSoal(id_soal):
+    curl = mysql.connection.cursor()
+    query = '''
+                SELECT soal.*, kategori.kategori, kategori.tanggal
+                FROM soal 
+                LEFT JOIN kategori ON soal.id_kategori = kategori.id_kategori
+                WHERE soal.id_soal = %s
+            '''
+    curl.execute(query, (id_soal,))
+    data = curl.fetchone()
+
+    curl.execute("SELECT * FROM kategori WHERE id_user = %s",(session['id_user'],))
+    kategori = curl.fetchall()
+    return render_template('guru/editSoal.html', data=data,kategori=kategori)
+
 
 #Auth/Login
 @app.route('/action-login', methods=['GET', 'POST'])
@@ -423,30 +593,43 @@ def calculate_score(user_answers, correct_answers):
 
 @app.route('/submit-quiz/<int:id_kategori>', methods=['POST'])
 def submit_quiz(id_kategori):
-    user_answers = request.form
-    correct_answers = get_correct_answers(id_kategori)
-    print("Jawaban Pengguna:", user_answers)
-    print("Jawaban yang Benar:", correct_answers)
-    correct_count, wrong_count = calculate_score(user_answers, correct_answers)
-    score = correct_count * 10
-    total_questions = len(correct_answers)
+    if request.method == 'POST':
+        user_answers = request.form
+        correct_answers = get_correct_answers(id_kategori)
+        print("Jawaban Pengguna:", user_answers)
+        print("Jawaban yang Benar:", correct_answers)
+        correct_count, wrong_count = calculate_score(user_answers, correct_answers)
+        score = correct_count * 10
+        total_questions = len(correct_answers)
 
-    cur = mysql.connection.cursor()
-    update_query = "UPDATE hasil_ujian SET hasil=%s, total_soal=%s, jumlah_betul=%s, jumlah_salah=%s WHERE id_user=%s AND id_kategori=%s"
-    cur.execute(update_query, (score, total_questions,  correct_count, wrong_count, session['id_user'], id_kategori))
-    mysql.connection.commit()
-    return render_template('score.html', score=score, total=total_questions, wrong_count=wrong_count,correct_count=correct_count)
+        cur = mysql.connection.cursor()
+        update_query = "UPDATE hasil_ujian SET hasil=%s, total_soal=%s, jumlah_betul=%s, jumlah_salah=%s WHERE id_user=%s AND id_kategori=%s"
+        cur.execute(update_query, (score, total_questions,  correct_count, wrong_count, session['id_user'], id_kategori))
+        mysql.connection.commit()
+        return render_template('score.html', score=score, total=total_questions, wrong_count=wrong_count,correct_count=correct_count)
+
 
 @app.route('/add_violation_data', methods=['POST'])
 def add_violation_data():
-    data = request.get_json()
-    id_user = data.get('id_user')
-    id_kategori = data.get('id_kategori')
-    cur = mysql.connection.cursor()
-    update_query = "UPDATE hasil_ujian SET pelanggaran = pelanggaran + 1 WHERE id_user = %s AND id_kategori = %s"
-    cur.execute(update_query, (id_user, id_kategori))
-    mysql.connection.commit()
-    return "Data pelanggaran berhasil diperbarui di database!"
+    if request.method == 'POST':
+        data = request.get_json()
+        id_user = data.get('id_user')
+        id_kategori = data.get('id_kategori')
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE hasil_ujian SET pelanggaran = COALESCE(pelanggaran, 0) + 1 WHERE id_user = %s AND id_kategori = %s", (id_user, id_kategori))
+        mysql.connection.commit()
+
+        pelanggaran_query = 'SELECT pelanggaran FROM hasil_ujian WHERE id_user = %s AND id_kategori = %s'
+        cur.execute(pelanggaran_query, (id_user, id_kategori))
+        pelanggaran_result = cur.fetchone()
+        pelanggaran = pelanggaran_result['pelanggaran'] if pelanggaran_result else 0
+
+        return str(pelanggaran)  
+
+
+@app.route('/score')
+def score():
+    return render_template('score.html')
 
 @app.route('/logout')
 def logout():

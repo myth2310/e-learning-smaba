@@ -42,7 +42,7 @@
                             <td>{{guru.status}}</td>
                             <td>
                                 <button type="button" class="btn btn-primary btn-sm"><i class="fa-solid fa-pen-to-square"></i></button>
-                                <button type="button" class="btn btn-danger btn-sm"><i class="fa-solid fa-trash" style="color: #f7f7f7;"></i></button>
+                                <button type="button" class="btn btn-danger btn-sm delete" data-id="{{guru.id_user}}" data-nama="{{guru.nama}}" ><i class="fa-solid fa-trash" style="color: #f7f7f7;"></i></button>
                             </td>
                         </tr>  
                         {% endfor %}
@@ -52,6 +52,29 @@
         </div>
     </div>
 </div>
+
+<script>
+    $('.delete').click(function () {
+        var dataid = $(this).attr('data-id');
+        var nama = $(this).attr('data-nama');
+        swal({
+            title: "Hapus Data ?"
+            , text: "Menghapus Guru dengan Nama " + nama + " "
+            , icon: "warning"
+            , buttons: true
+            , dangerMode: true
+            ,
+        })
+            .then((willUpprove) => {
+                if (willUpprove) {
+                    window.location = "/delete-users/" + dataid + ""
+                } else {
+                    swal("Hapus dibatalkan");
+                }
+            });
+    });
+
+</script>
 
 
 {% endblock %}

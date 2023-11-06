@@ -2,6 +2,15 @@
 
 {% block content %}
 
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+{% for category, message in messages %}
+    <script>
+    swal("Hapus Data", "{{message}}", "error");
+    </script>
+{% endfor %}
+{% endif %}
+{% endwith %}
 
 <div class="container-fluid">
     {% if session['level'] == 'Admin' %}

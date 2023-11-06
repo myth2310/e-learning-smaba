@@ -44,8 +44,12 @@
                             <td>{{ujian.time_start}} - {{ujian.time_done}}</td>
                             <td><span class="font-bold">{{ujian.duration}} Menit</span></td>
                             <td>
-                                <button type="button" data-id="{{ujian.id_kategori}}"
+                                {% if ujian.id_kategori in ujianSelesai %}
+                                <button type="button" class="btn btn-success text-white" disabled>Ujian Selesai</button>
+                                {% else %}
+                                <button type="button" data-id="{{ujian.id_kategori}}" data-date="{{ujian.tanggal}}" date-time="{{ujian.time_start}}"
                                     class="btn btn-danger text-white mb-4 start">Mulai Ujian</button>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
@@ -56,27 +60,41 @@
     </div>
 </div>
 
-
 <script>
     $('.start').click(function () {
-        var dataid = $(this).attr('data-id');
-        swal({
-            title: "Mulai Ujian ?"
-            , text: "Apakah kamu yakin ingin mulai ujian sekarang ?"
-            , icon: "warning"
-            , buttons: true
-            , dangerMode: true
-            ,
-        })
-            .then((willUpprove) => {
+        var datadate = $(this).attr('data-date');
+        var waktuSekarang = new Date();
+        var waktuUjian = new Date(datadate);
+
+        var jamMulai = new Date();
+        var waktuUjianString = $(this).attr('date-time');
+        var waktuUjianParts = waktuUjianString.split(':');
+        jamMulai.setHours(parseInt(waktuUjianParts[0]));
+        jamMulai.setMinutes(parseInt(waktuUjianParts[1]));
+
+        if (waktuSekarang < waktuUjian) {
+            swal("Peringatan !", "Maaf, belum saatnya untuk memulai ujian.", "warning");
+        } else if (waktuSekarang < jamMulai) {
+            var jamMulaiFormatted = jamMulai.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
+            swal("Peringatan !", "Ujian akan dapat dimulai pada pukul " + jamMulaiFormatted + ".", "warning");
+        } else {
+            var dataid = $(this).attr('data-id');
+            swal({
+                title: "Mulai Ujian ?"
+                , text: "Apakah kamu yakin ingin memulai ujian sekarang ?"
+                , icon: "warning"
+                , buttons: true
+                , dangerMode: true
+            }).then((willUpprove) => {
                 if (willUpprove) {
-                    window.location = "/ujian/" + dataid + ""
+                    window.location = "/ujian/" + dataid + "";
                 } else {
                     swal("Ujian dibatalkan");
                 }
             });
+        }
     });
-
 </script>
+
 
 {% endblock %}
