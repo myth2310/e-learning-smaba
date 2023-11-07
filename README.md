@@ -12,6 +12,7 @@ Sistem Ujian Online ini adalah sebuah aplikasi web yang memungkinkan pengguna un
 - Pengaturan waktu ujian dan aturan ujian yang dapat disesuaikan.
 - Penilaian otomatis dan hasil ujian yang tersedia segera setelah selesai.
 - Antarmuka pengguna yang responsif dan ramah pengguna.
+- Integrasi Whatsapp API (Twillo)
 
 ## Instalasi
 
