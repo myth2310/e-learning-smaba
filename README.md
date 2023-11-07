@@ -1,6 +1,6 @@
 # Sistem Ujian Online Menggunakan Flask
 
-![Alt Text](desc/login%20Page.jpg)
+![Halaman Login](desc/login%20Page.JPG)
 
 Sistem Ujian Online ini adalah sebuah aplikasi web yang memungkinkan pengguna untuk membuat, mengelola, dan mengikuti ujian secara online. Aplikasi ini dikembangkan menggunakan framework Flask dalam bahasa pemrograman Python.
 
