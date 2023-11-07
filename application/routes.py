@@ -6,6 +6,8 @@ import hashlib
 import os
 from datetime import datetime
 import requests
+from flask import Flask, request, render_template
+from twilio.rest import Client
 
 app.secret_key = 'your_secret_key'
 
@@ -29,26 +31,59 @@ def login():
 @app.route('/home')
 def home():
     if 'islogin' in session:
-         return render_template('admin/index.html')
+        curl = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        curl.execute('''
+            SELECT users.*
+            FROM users 
+            WHERE users.id_user = %s
+        ''',(session['id_user'],))
+        data = curl.fetchone()
+
+        return render_template('admin/index.html',data=data)
     else:
         return redirect(url_for('login'))
 
-@app.route('/chat')
-def chat():
-    return render_template('chat.html')
+@app.route('/profil')
+def profil():
+    if 'islogin' in session:
+        curl = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        curl.execute('''
+            SELECT users.*, kelas.kelas,jurusan.jurusan
+            FROM users 
+            LEFT JOIN kelas ON kelas.id_kelas = users.id_kelas
+            LEFT JOIN jurusan ON users.id_jurusan = jurusan.id_jurusan
+            WHERE users.id_user = %s
+        ''',(session['id_user'],))
+        data = curl.fetchone() 
+        return render_template('profil.html',data=data)
+    else:
+        return redirect(url_for('login'))
 
-@app.route('/send_message', methods=['POST'])
-def send_message():
-    try:
-        phone_no = request.form['phone']
-        message = request.form['message']
-        
-        kit.sendwhatmsg(f"+{phone_no}", message, 0, 0)  # Mengirim pesan WhatsApp secara instan
+@app.route('/form-edit-profil/<int:id_user>', methods=['GET'])
+def formEditProfil(id_user):
+    if 'islogin' in session:
+        curl = mysql.connection.cursor()
+        curl.execute('''
+                SELECT users.*, kelas.kelas,jurusan.jurusan
+                FROM users 
+                LEFT JOIN kelas ON kelas.id_kelas = users.id_kelas
+                LEFT JOIN jurusan ON users.id_jurusan = jurusan.id_jurusan
+                WHERE users.id_user = %s
+        ''',(session['id_user'],))
+        data = curl.fetchone() 
+        return render_template('formProfil.html',data=data)
+    else:
+        return redirect(url_for('login'))
 
-        return "Pesan WhatsApp berhasil dikirim!"
-
-    except Exception as e:
-        return str(e)
+@app.route('/edit-profil/<int:id_user>', methods=['GET','POST'])
+def updateProfil(id_user):
+    nama_ortu = request.form['nama_ortu']
+    no_ortu = request.form['no_ortu']
+    cur = mysql.connection.cursor()
+    cur.execute("UPDATE users SET nama_ortu = %s, no_ortu = %s WHERE id_user = %s", (nama_ortu,no_ortu, id_user))
+    mysql.connection.commit()
+    flash('Data Profil Berhasil diupdate')
+    return redirect(url_for('profil'))
 
 @app.route('/data-siswa')
 def dataSiswa():
@@ -291,6 +326,17 @@ def listUjian():
     ''')
     ujian = curl.fetchall()
 
+
+    curl.execute('''
+        SELECT users.*
+        FROM users 
+        WHERE users.id_user = %s
+    ''',(session['id_user'],))
+    data = curl.fetchone()
+
+    if data['no_ortu'] is None:
+        return redirect(url_for('profil'))
+
     curl.execute('''
                 SELECT kategori.id_kategori
                 FROM kategori
@@ -378,6 +424,29 @@ def insertUser():
     mysql.connection.commit()
     return redirect(url_for('home'))
 
+@app.route('/update-user/<int:id_user>', methods=['POST'])
+def updateUser(id_user):
+    nama = request.form['nama']
+    email = request.form['email']
+    status = request.form['status']
+    level = request.form['level']
+    id_mapel = request.form['id_mapel']
+    id_jurusan = request.form['id_jurusan']
+    id_kelas = request.form['id_kelas']
+    password = request.form['password']
+    hashed_password = hashlib.sha256(password.encode()).hexdigest()
+
+    cur = mysql.connection.cursor()
+    cur.execute('''
+        UPDATE users 
+        SET nama = %s, email = %s, status = %s, level = %s, id_mapel = %s, id_jurusan = %s, id_kelas = %s, password = %s 
+        WHERE id_user = %s
+    ''', (nama, email, status, level, id_mapel, id_jurusan, id_kelas, hashed_password, id_user))
+    
+    mysql.connection.commit()
+    return redirect(url_for('home'))
+
+
 @app.route('/insert-kelas',methods=['POST'])
 def insertKelas():
     id_jurusan = request.form['id_jurusan']
@@ -407,9 +476,27 @@ def insertJurusan():
 @app.route('/view-users/<int:id_user>', methods=['GET'])
 def viewUsers(id_user):
     curl = mysql.connection.cursor()
-    curl.execute("SELECT * FROM users WHERE id_user = %s", (id_user,))
+    query = '''
+        SELECT users.*,mapel.mapel,jurusan.jurusan,kelas.kelas
+        FROM users 
+        LEFT JOIN mapel ON users.id_mapel = mapel.id_mapel
+        LEFT JOIN jurusan ON users.id_jurusan = jurusan.id_jurusan
+        LEFT JOIN kelas ON users.id_kelas = kelas.id_kelas
+        WHERE users.id_user = %s
+    '''
+    curl.execute(query, (id_user,))
     data = curl.fetchone()
-    return render_template('admin/formEdit.html', data=data)
+
+    curl.execute("SELECT * FROM mapel")
+    mapel = curl.fetchall()
+
+    curl.execute("SELECT * FROM jurusan")
+    jurusan = curl.fetchall()
+
+    curl.execute("SELECT * FROM kelas")
+    kelas = curl.fetchall()
+
+    return render_template('admin/formEdit.html', data=data,mapel=mapel,kelas=kelas,jurusan=jurusan)
 
 @app.route('/delete-users/<int:id_user>', methods=['GET'])
 def deleteUsers(id_user):
@@ -591,9 +678,33 @@ def calculate_score(user_answers, correct_answers):
                 wrong_count += 1
     return correct_count, wrong_count
 
+# Fungsi pengiriman pesan WhatsApp
+def send_whatsapp_message(body,to_number):
+    account_sid = 'AC000d3808cdccad5d9f40263b14919d05'
+    auth_token = '08637f225b379b8e378c0da9a3a654a9'
+    client = Client(account_sid, auth_token)
+
+    message = client.messages.create(
+        from_='whatsapp:+14155238886',
+        body=body,
+        to=f'whatsapp:+{to_number}'
+    )
+    return message.sid
+
 @app.route('/submit-quiz/<int:id_kategori>', methods=['POST'])
 def submit_quiz(id_kategori):
     if request.method == 'POST':
+        curl = mysql.connection.cursor()
+        curl.execute('''
+                SELECT users.*
+                FROM users 
+                WHERE users.id_user = %s
+        ''',(session['id_user'],))
+        data = curl.fetchone()
+        whatsapp_number = data['no_ortu'] 
+        nama_ortu = data['nama_ortu'] 
+        nama = data['nama'] 
+
         user_answers = request.form
         correct_answers = get_correct_answers(id_kategori)
         print("Jawaban Pengguna:", user_answers)
@@ -606,8 +717,12 @@ def submit_quiz(id_kategori):
         update_query = "UPDATE hasil_ujian SET hasil=%s, total_soal=%s, jumlah_betul=%s, jumlah_salah=%s WHERE id_user=%s AND id_kategori=%s"
         cur.execute(update_query, (score, total_questions,  correct_count, wrong_count, session['id_user'], id_kategori))
         mysql.connection.commit()
-        return render_template('score.html', score=score, total=total_questions, wrong_count=wrong_count,correct_count=correct_count)
 
+        # Kirim pesan WhatsApp
+        message_body = f"Assalamualaikum Wr. Wb Selamat Siang Ibu/Bapak {nama_ortu} ,orang tua/wali {nama} Kami sampaikan bahwa {nama} telah meneyelesaikan ujian dan mendapatkan Hasil ujian : {score} dari {total_questions} soal. Jumlah jawaban benar: {correct_count}. Jumlah jawaban salah: {wrong_count}.Terima kasih kami sampaikan, Wassalamualaikum Wr. Wb  Ttd, Akademik SMAN Balapulang 1"
+        send_whatsapp_message(message_body,whatsapp_number)
+
+        return render_template('score.html', score=score, total=total_questions, wrong_count=wrong_count,correct_count=correct_count)
 
 @app.route('/add_violation_data', methods=['POST'])
 def add_violation_data():
@@ -635,3 +750,6 @@ def score():
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+
+
