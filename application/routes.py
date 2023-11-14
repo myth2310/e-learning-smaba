@@ -681,7 +681,7 @@ def calculate_score(user_answers, correct_answers):
 # Fungsi pengiriman pesan WhatsApp
 def send_whatsapp_message(body,to_number):
     account_sid = 'AC000d3808cdccad5d9f40263b14919d05'
-    auth_token = '08637f225b379b8e378c0da9a3a654a9'
+    auth_token = 'eed246d9345e145143cfa1edd5088d1f'
     client = Client(account_sid, auth_token)
 
     message = client.messages.create(
