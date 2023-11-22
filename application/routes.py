@@ -39,7 +39,23 @@ def home():
         ''',(session['id_user'],))
         data = curl.fetchone()
 
-        return render_template('admin/index.html',data=data)
+        curl.execute("SELECT COUNT(*) FROM users WHERE level='Siswa'")
+        result_siswa = curl.fetchone()
+        count_siswa = result_siswa['COUNT(*)']
+
+        curl.execute("SELECT COUNT(*) FROM users WHERE level='Guru'")
+        result_guru = curl.fetchone()
+        count_guru = result_guru['COUNT(*)']
+
+        curl.execute("SELECT COUNT(*) FROM kelas")
+        result_kelas = curl.fetchone()
+        count_kelas = result_kelas['COUNT(*)']
+
+        curl.execute("SELECT COUNT(*) FROM mapel")
+        result_mapel = curl.fetchone()
+        count_mapel = result_mapel['COUNT(*)']
+
+        return render_template('admin/index.html',data=data,count_siswa=count_siswa,count_guru=count_guru,count_kelas=count_kelas,count_mapel=count_mapel)
     else:
         return redirect(url_for('login'))
 
@@ -346,7 +362,13 @@ def listUjian():
 
     ujianSelesai = [item['id_kategori'] for item in curl.fetchall()]
 
-    return render_template('siswa/listUjian.html',ujian=ujian,ujianSelesai=ujianSelesai)
+    current_time = get_current_time()
+    formatted_datetime = current_time.strftime("%H:%M")
+
+    return render_template('siswa/listUjian.html',ujian=ujian,ujianSelesai=ujianSelesai,formatted_datetime=formatted_datetime)
+
+def get_current_time():
+    return datetime.now()
 
 #Action Guru
 @app.route('/insert-jenis-ujian', methods=['POST'])
@@ -681,7 +703,7 @@ def calculate_score(user_answers, correct_answers):
 # Fungsi pengiriman pesan WhatsApp
 def send_whatsapp_message(body,to_number):
     account_sid = 'AC000d3808cdccad5d9f40263b14919d05'
-    auth_token = 'eed246d9345e145143cfa1edd5088d1f'
+    auth_token = '2d1417ceed49e2a4176b4e3320950c11'
     client = Client(account_sid, auth_token)
 
     message = client.messages.create(
