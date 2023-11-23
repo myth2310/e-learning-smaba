@@ -703,7 +703,7 @@ def calculate_score(user_answers, correct_answers):
 # Fungsi pengiriman pesan WhatsApp
 def send_whatsapp_message(body,to_number):
     account_sid = 'AC000d3808cdccad5d9f40263b14919d05'
-    auth_token = '2d1417ceed49e2a4176b4e3320950c11'
+    auth_token = '2a215775b7305df78588878f710671d3'
     client = Client(account_sid, auth_token)
 
     message = client.messages.create(
@@ -741,7 +741,7 @@ def submit_quiz(id_kategori):
         mysql.connection.commit()
 
         # Kirim pesan WhatsApp
-        message_body = f"Assalamualaikum Wr. Wb Selamat Siang Ibu/Bapak {nama_ortu} ,orang tua/wali {nama} Kami sampaikan bahwa {nama} telah meneyelesaikan ujian dan mendapatkan Hasil ujian : {score} dari {total_questions} soal. Jumlah jawaban benar: {correct_count}. Jumlah jawaban salah: {wrong_count}.Terima kasih kami sampaikan, Wassalamualaikum Wr. Wb  Ttd, Akademik SMAN Balapulang 1"
+        message_body = f"Assalamualaikum Wr. Wb Selamat Siang Ibu/Bapak {nama_ortu} \n\nSelaku orang tua/wali {nama}, kami sampaikan bahwa {nama} telah meneyelesaikan ujian dan mendapatkan Hasil ujian :  \n Score {score} dari {total_questions} soal. \n Jumlah jawaban benar: {correct_count}. \n Jumlah jawaban salah: {wrong_count}.\n\n  Terima kasih kami sampaikan, Wassalamualaikum Wr. Wb \n\n Ttd, Akademik SMAN Balapulang 1"
         send_whatsapp_message(message_body,whatsapp_number)
 
         return render_template('score.html', score=score, total=total_questions, wrong_count=wrong_count,correct_count=correct_count)
